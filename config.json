@@ -1,0 +1,16 @@
+{
+    "Roles": [
+        {
+            "RoleArn": "arn:aws:iam::000000000000:role/aws-a-role",
+            "Region": "us-east-1"
+        },
+        {
+            "RoleArn": "arn:aws:iam::111111111111:role/aws-b-role",
+            "Region": "ap-southeast-1"
+        },
+        {
+            "RoleArn": "arn:aws:iam::222222222222:role/aws-c-role",
+            "Region": "eu-west-1"
+        }
+    ]
+}
