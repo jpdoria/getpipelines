@@ -6,11 +6,13 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/codepipeline"
 )
 
@@ -58,8 +60,8 @@ func newSess(roleArn, region string) (*session.Session, *credentials.Credentials
 }
 
 // Export data (slices) to CSV file.
-func exportToCSV(data [][]string) {
-	file, err := os.OpenFile("results.csv", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+func exportToCSV(data [][]string, output string) {
+	file, err := os.OpenFile(output, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	check(err)
 	defer file.Close()
 
@@ -79,10 +81,11 @@ func getActivePipelinesInfo(cp *codepipeline.CodePipeline) {
 	listRes, listErr := cp.ListPipelines(listIn)
 	check(listErr)
 
+	// Then get each pipeline info.
+	log.Println("getting pipelines information")
 	pipelines := [][]string{}
 
-	// Then retrieve each pipeline info.
-	for i := 0; i < len(listRes.Pipelines); i++ {
+	for i := range listRes.Pipelines {
 		pipelineName := *listRes.Pipelines[i].Name
 		getIn := &codepipeline.GetPipelineInput{Name: aws.String(pipelineName)}
 		getRes, getErr := cp.GetPipeline(getIn)
@@ -104,24 +107,105 @@ func getActivePipelinesInfo(cp *codepipeline.CodePipeline) {
 		}
 	}
 
-	exportToCSV(pipelines)
+	exportToCSV(pipelines, "getActivePipelinesInfoResults.csv")
+	log.Println("saved to getActivePipelinesInfoResults.csv")
+}
+
+// Get approval logs from CloudTrail.
+func getApprovalLogsInfo(ct *cloudtrail.CloudTrail) {
+	previousMonth := time.Now().AddDate(0, -1, 0)
+	currentDate := time.Now()
+	in := &cloudtrail.LookupEventsInput{
+		StartTime: aws.Time(previousMonth),
+		EndTime:   aws.Time(currentDate),
+		LookupAttributes: []*cloudtrail.LookupAttribute{
+			{
+				AttributeKey:   aws.String("EventName"),
+				AttributeValue: aws.String("PutApprovalResult"),
+			},
+		},
+	}
+	res, err := ct.LookupEvents(in)
+	check(err)
+
+	// Get approval logs.
+	log.Println("getting approval logs")
+	data := [][]string{}
+
+	for i := range res.Events {
+		// Unmarshal JSON output from CloudTrailEvent.
+		event := *res.Events[i].CloudTrailEvent
+		var e map[string]interface{}
+		json.Unmarshal([]byte(event), &e)
+
+		userIdentity := e["userIdentity"].(map[string]interface{})
+		requestParameters := e["requestParameters"].(map[string]interface{})
+		result := requestParameters["result"].(map[string]interface{})
+		responseElements := e["responseElements"].(map[string]interface{})
+
+		// Things we need to export to CSV file.
+		arn := userIdentity["arn"]
+		awsRegion := e["awsRegion"]
+		souceIPAddress := e["sourceIPAddress"]
+		status := result["status"]
+		summary := result["summary"]
+		stageName := requestParameters["stageName"]
+		pipelineName := *res.Events[i].Resources[0].ResourceName
+		approvedAt := responseElements["approvedAt"]
+		requestID := e["requestID"]
+		eventID := e["eventID"]
+		row := []string{
+			arn.(string),
+			awsRegion.(string),
+			souceIPAddress.(string),
+			status.(string),
+			summary.(string),
+			stageName.(string),
+			pipelineName,
+			approvedAt.(string),
+			requestID.(string),
+			eventID.(string),
+		}
+		data = append(data, row)
+	}
+
+	exportToCSV(data, "getApprovalLogsInfoResults.csv")
+	log.Println("saved to getApprovalLogsInfoResults.csv")
 }
 
 // Main function.
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
+	// Write headers for getActivePipelinesInfo.
 	headers := [][]string{{"PipelineName", "S3Bucket", "S3ObjectKey"}}
-	exportToCSV(headers)
+	exportToCSV(headers, "getActivePipelinesInfoResults.csv")
+
+	// Write headers for getApprovalLogsInfo.
+	headers = [][]string{{
+		"UserIdentity",
+		"AwsRegion",
+		"SourceIPAddress",
+		"Status",
+		"Summary",
+		"StageName",
+		"PipelineName",
+		"ApprovedAt",
+		"RequestId",
+		"EventId",
+	}}
+	exportToCSV(headers, "getApprovalLogsInfoResults.csv")
 
 	l := parseConfJSON()
 
-	for i := 0; i < len(l.Roles); i++ {
+	for i := range l.Roles {
 		roleArn := l.Roles[i].RoleArn
 		region := l.Roles[i].Region
 		sess, creds := newSess(roleArn, region)
 		cp := codepipeline.New(sess, &aws.Config{Credentials: creds})
+		ct := cloudtrail.New(sess, &aws.Config{Credentials: creds})
 
 		getActivePipelinesInfo(cp)
+		getApprovalLogsInfo(ct)
 	}
 }
