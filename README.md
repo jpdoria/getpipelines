@@ -40,11 +40,12 @@ getpipelines.go -config config.json -destdir /tmp
 # Example
 
 ```bash
-➜ getpipelines.go -config config.json -destdir /tmp
-2019/01/28 19:29:08.375974 getting pipelines information
-2019/01/28 19:29:23.718077 saved to /tmp/getActivePipelinesInfoResults.csv
-2019/01/28 19:29:26.260371 getting approval logs
-2019/01/28 19:29:26.263091 saved to /tmp/getApprovalLogsInfoResults.csv
+➜ getcicdinfo.go -config config.json -destdir /tmp
+2019/01/28 20:58:18.871780 getcicdinfo.go:217: [info] getting all the information you need
+2019/01/28 20:58:55.376848 getcicdinfo.go:108: [warn] pipeline-d is not using S3 as source
+2019/01/28 20:58:56.220959 getcicdinfo.go:108: [warn] pipeline-e is not using S3 as source
+2019/01/28 20:59:22.152755 getcicdinfo.go:230: [info] saved to /tmp/getActivePipelinesInfoResults.csv
+2019/01/28 20:59:22.152785 getcicdinfo.go:231: [info] saved to /tmp/getApprovalLogsInfoResults.csv
 ```
 
 ```bash

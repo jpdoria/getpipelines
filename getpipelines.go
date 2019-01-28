@@ -88,7 +88,6 @@ func getActivePipelinesInfo(cp *codepipeline.CodePipeline) {
 	check(listErr)
 
 	// Then get each pipeline info.
-	log.Println("getting pipelines information")
 	pipelines := [][]string{}
 
 	for i := range listRes.Pipelines {
@@ -114,7 +113,6 @@ func getActivePipelinesInfo(cp *codepipeline.CodePipeline) {
 	}
 
 	exportToCSV(pipelines, "getActivePipelinesInfoResults.csv")
-	log.Printf("saved to %v/getActivePipelinesInfoResults.csv", *destDir)
 }
 
 // Get approval logs from CloudTrail.
@@ -135,7 +133,6 @@ func getApprovalLogsInfo(ct *cloudtrail.CloudTrail) {
 	check(err)
 
 	// Get approval logs.
-	log.Println("getting approval logs")
 	data := [][]string{}
 
 	for i := range res.Events {
@@ -176,13 +173,12 @@ func getApprovalLogsInfo(ct *cloudtrail.CloudTrail) {
 	}
 
 	exportToCSV(data, "getApprovalLogsInfoResults.csv")
-	log.Printf("saved to %v/getApprovalLogsInfoResults.csv", *destDir)
 }
 
 // Main function.
 func main() {
 	// Add microseconds to log output.
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.Lshortfile)
 
 	// Flag handling get the values of confFile and destDir.
 	flag.Parse()
@@ -218,6 +214,8 @@ func main() {
 
 	l := parseConfJSON()
 
+	log.Printf("[info] getting all the information you need")
+
 	for i := range l.Roles {
 		roleArn := l.Roles[i].RoleArn
 		region := l.Roles[i].Region
@@ -228,4 +226,7 @@ func main() {
 		getActivePipelinesInfo(cp)
 		getApprovalLogsInfo(ct)
 	}
+
+	log.Printf("[info] saved to %v/getActivePipelinesInfoResults.csv", *destDir)
+	log.Printf("[info] saved to %v/getApprovalLogsInfoResults.csv", *destDir)
 }
