@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/csv"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -15,6 +17,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/cloudtrail"
 	"github.com/aws/aws-sdk-go/service/codepipeline"
 )
+
+var confFile = flag.String("config", "", "/path/to/config.json (required)")
+var destDir = flag.String("destdir", "", "directory where to save the reports (required)")
 
 // Roles struct which contains the roles.
 // This is required for reading the config.json file.
@@ -38,7 +43,7 @@ func check(err error) {
 
 // Get the role ARNs and regions from the config.json
 func parseConfJSON() Roles {
-	data, err := ioutil.ReadFile("config.json")
+	data, err := ioutil.ReadFile(*confFile)
 	var r Roles
 
 	check(err)
@@ -61,7 +66,8 @@ func newSess(roleArn, region string) (*session.Session, *credentials.Credentials
 
 // Export data (slices) to CSV file.
 func exportToCSV(data [][]string, output string) {
-	file, err := os.OpenFile(output, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	d := fmt.Sprintf("%v/%v", *destDir, output)
+	file, err := os.OpenFile(d, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 	check(err)
 	defer file.Close()
 
@@ -108,7 +114,7 @@ func getActivePipelinesInfo(cp *codepipeline.CodePipeline) {
 	}
 
 	exportToCSV(pipelines, "getActivePipelinesInfoResults.csv")
-	log.Println("saved to getActivePipelinesInfoResults.csv")
+	log.Printf("saved to %v/getActivePipelinesInfoResults.csv", *destDir)
 }
 
 // Get approval logs from CloudTrail.
@@ -170,12 +176,26 @@ func getApprovalLogsInfo(ct *cloudtrail.CloudTrail) {
 	}
 
 	exportToCSV(data, "getApprovalLogsInfoResults.csv")
-	log.Println("saved to getApprovalLogsInfoResults.csv")
+	log.Printf("saved to %v/getApprovalLogsInfoResults.csv", *destDir)
 }
 
 // Main function.
 func main() {
+	// Add microseconds to log output.
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+
+	// Flag handling get the values of confFile and destDir.
+	flag.Parse()
+
+	if *confFile == "" {
+		fmt.Fprintln(os.Stderr, "-config <config filename> is required")
+		os.Exit(1)
+	}
+
+	if *destDir == "" {
+		fmt.Fprintln(os.Stderr, "-destdir <directory name> is required")
+		os.Exit(2)
+	}
 
 	// Write headers for getActivePipelinesInfo.
 	headers := [][]string{{"PipelineName", "S3Bucket", "S3ObjectKey"}}
