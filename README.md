@@ -1,6 +1,6 @@
 # About
 
-A simple script written in Go that retrieves the source and key of active pipelines that use S3 on CodePipeline.
+A simple script written in Go that gets the source and key of active pipelines that use S3 on CodePipeline and also gets the approval logs from CloudTrail from the last 30 days.
 
 # Installing
 
@@ -34,18 +34,18 @@ Update `config.json` with the correct region and IAM roles to assume.
 Run the script.
 
 ```bash
-getpipelines.go -config config.json -destdir /tmp
+getpipelines -config config.json -destdir /tmp
 ```
 
 # Example
 
 ```bash
-➜ getcicdinfo.go -config config.json -destdir /tmp
-2019/01/28 20:58:18.871780 getcicdinfo.go:217: [info] getting all the information you need
-2019/01/28 20:58:55.376848 getcicdinfo.go:108: [warn] pipeline-d is not using S3 as source
-2019/01/28 20:58:56.220959 getcicdinfo.go:108: [warn] pipeline-e is not using S3 as source
-2019/01/28 20:59:22.152755 getcicdinfo.go:230: [info] saved to /tmp/getActivePipelinesInfoResults.csv
-2019/01/28 20:59:22.152785 getcicdinfo.go:231: [info] saved to /tmp/getApprovalLogsInfoResults.csv
+➜ getpipelines -config config.json -destdir /tmp
+2019/01/28 20:58:18.871780 getpipelines.go:217: [info] getting all the information you need
+2019/01/28 20:58:55.376848 getpipelines.go:108: [warn] pipeline-d is not using S3 as source
+2019/01/28 20:58:56.220959 getpipelines.go:108: [warn] pipeline-e is not using S3 as source
+2019/01/28 20:59:22.152755 getpipelines.go:230: [info] saved to /tmp/getActivePipelinesInfoResults.csv
+2019/01/28 20:59:22.152785 getpipelines.go:231: [info] saved to /tmp/getApprovalLogsInfoResults.csv
 ```
 
 ```bash
